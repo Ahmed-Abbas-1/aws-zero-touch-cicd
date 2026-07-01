@@ -2,7 +2,8 @@ name: Zero-Touch CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main" ] 
+    branches: [ "master", "main" ]
+  workflow_dispatch:
 
 jobs:
   build-and-push:
