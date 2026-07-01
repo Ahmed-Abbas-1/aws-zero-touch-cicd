@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Deployment | Zero-Touch CI/CD Pipeline</title>
+    <style>
+        :root {
+            --aws-dark: #232f3e;
+            --aws-light: #eaeded;
+            --github-dark: #0d1117;
+            --docker-blue: #2496ed;
+            --success-neon: #39ff14;
+            --text-main: #c9d1d9;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Fira Code', 'Segoe UI', monospace, sans-serif;
+        }
+
+        body {
+            background-color: var(--github-dark);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Animated Grid Background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background-image: 
+                linear-gradient(rgba(36, 150, 237, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(36, 150, 237, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+            z-index: -1;
+        }
+
+        header {
+            padding: 4rem 2rem 2rem;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: linear-gradient(180deg, rgba(35,47,62,0.8) 0%, rgba(13,17,23,1) 100%);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(57, 255, 20, 0.1);
+            border: 1px solid var(--success-neon);
+            color: var(--success-neon);
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-weight: bold;
+            margin-bottom: 2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 0 15px rgba(57, 255, 20, 0.2);
+        }
+
+        .pulse-dot {
+            width: 10px;
+            height: 10px;
+            background-color: var(--success-neon);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--success-neon);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(57, 255, 20, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(57, 255, 20, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(57, 255, 20, 0); }
+        }
+
+        h1 {
+            font-size: 3rem;
+            color: #ffffff;
+            margin-bottom: 1rem;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            color: var(--docker-blue);
+            font-weight: 400;
+            margin-bottom: 1rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 4rem 2rem;
+        }
+
+        .pipeline-stages {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4rem;
+            position: relative;
+        }
+
+        /* Connecting Line */
+        .pipeline-stages::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: rgba(36, 150, 237, 0.3);
+            z-index: 1;
+        }
+
+        .stage-card {
+            background-color: var(--aws-dark);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--docker-blue);
+            z-index: 2;
+            width: 30%;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            transition: transform 0.3s ease;
+        }
+
+        .stage-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0 20px rgba(36, 150, 237, 0.4);
+        }
+
+        .stage-card h3 {
+            color: #fff;
+            margin-bottom: 0.5rem;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .stage-card p {
+            font-size: 0.9rem;
+            color: #8b949e;
+        }
+
+        /* Simulated Terminal */
+        .terminal {
+            background-color: #012456;
+            border-radius: 8px;
+            padding: 1.5rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5), 0 10px 30px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .terminal-header {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .terminal-btn {
+            width: 12px; height: 12px; border-radius: 50%;
+        }
+        .close { background: #ff5f56; }
+        .min { background: #ffbd2e; }
+        .max { background: #27c93f; }
+
+        .log-line {
+            margin-bottom: 8px;
+            opacity: 0;
+            animation: fadeIn 0.5s forwards;
+        }
+        .log-time { color: #8b949e; margin-right: 15px; }
+        .log-cmd { color: #fff; }
+        .log-success { color: var(--success-neon); }
+
+        .log-line:nth-child(2) { animation-delay: 0.5s; }
+        .log-line:nth-child(3) { animation-delay: 1.2s; }
+        .log-line:nth-child(4) { animation-delay: 2.0s; }
+        .log-line:nth-child(5) { animation-delay: 3.5s; }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        footer {
+            text-align: center;
+            padding: 3rem;
+            color: #8b949e;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        @media (max-width: 768px) {
+            .pipeline-stages { flex-direction: column; gap: 2rem; }
+            .pipeline-stages::before { display: none; }
+            .stage-card { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="status-badge">
+            <div class="pulse-dot"></div>
+            Live: Pipeline Deployed Successfully
+        </div>
+        <h1>Zero-Touch CI/CD Architecture</h1>
+        <h2>Automated Delivery on AWS Infrastructure</h2>
+    </header>
+
+    <main class="container">
+        
+        <!-- Pipeline Architecture Cards -->
+        <div class="pipeline-stages">
+            <div class="stage-card">
+                <h3>1. Source</h3>
+                <p>GitHub Actions triggered by Push to Main branch.</p>
+            </div>
+            <div class="stage-card">
+                <h3>2. Build</h3>
+                <p>Docker Image built & pushed to AWS ECR securely.</p>
+            </div>
+            <div class="stage-card">
+                <h3>3. Deploy</h3>
+                <p>Latest container pulled and executed on AWS EC2.</p>
+            </div>
+        </div>
+
+        <!-- Simulated Deployment Terminal -->
+        <div class="terminal">
+            <div class="terminal-header">
+                <div class="terminal-btn close"></div>
+                <div class="terminal-btn min"></div>
+                <div class="terminal-btn max"></div>
+            </div>
+            <div class="log-line">
+                <span class="log-time">10:00:01</span><span class="log-cmd">Trigger: git push origin main</span>
+            </div>
+            <div class="log-line">
+                <span class="log-time">10:00:05</span><span class="log-cmd">Job Setup: Initializing GitHub Actions runner...</span>
+            </div>
+            <div class="log-line">
+                <span class="log-time">10:00:12</span><span class="log-cmd">Docker: Building image aws-cicd-app:latest... <span class="log-success">[OK]</span></span>
+            </div>
+            <div class="log-line">
+                <span class="log-time">10:00:25</span><span class="log-cmd">AWS ECR: Pushing container image... <span class="log-success">[OK]</span></span>
+            </div>
+            <div class="log-line">
+                <span class="log-time">10:00:40</span><span class="log-cmd">AWS EC2: Deploying new container via SSH... <span class="log-success">[DEPLOYMENT SUCCESSFUL]</span></span>
+            </div>
+        </div>
+
+    </main>
+
+    <footer>
+        <p>Architected & Deployed by <strong>Ahmed Mohamed Abbas</strong> | Cloud Infrastructure Engineer</p>
+    </footer>
+
+</body>
+</html>
